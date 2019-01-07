@@ -181,11 +181,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e2ecfe2ae09178ea794d8b988c8541c30c79bd2de4e827520851abdab0da4e22"
+  digest = "1:9f2c80de1df5ca3eb3e82afc6e98d1ad90d7daa7dae03456d56b4e5c6b273791"
   name = "github.com/zcong1993/libgo"
-  packages = ["utils"]
+  packages = [
+    "mysql",
+    "utils",
+  ]
   pruneopts = "UT"
-  revision = "7af57c1fe5883877c02a3849cb60e9b8f72506cd"
+  revision = "1f94ab4ffd271d73d4ac667c940cba220fe34601"
 
 [[projects]]
   branch = "master"
@@ -252,6 +255,7 @@
     "github.com/jinzhu/gorm/dialects/postgres",
     "github.com/vektah/gqlparser",
     "github.com/vektah/gqlparser/ast",
+    "github.com/zcong1993/libgo/mysql",
     "github.com/zcong1993/libgo/utils",
     "gopkg.in/go-playground/validator.v9",
   ]

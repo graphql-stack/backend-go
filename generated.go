@@ -88,15 +88,15 @@ type ComplexityRoot struct {
 }
 
 type CommentResolver interface {
-	Post(ctx context.Context, obj *model.Comment) (model.Post, error)
-	Author(ctx context.Context, obj *model.Comment) (model.User, error)
+	Post(ctx context.Context, obj *model.Comment) (*model.Post, error)
+	Author(ctx context.Context, obj *model.Comment) (*model.User, error)
 }
 type MutationResolver interface {
 	Register(ctx context.Context, registerInput types.RegisterInput) (model.User, error)
 	Login(ctx context.Context, loginInput types.LoginInput) (model.Token, error)
 }
 type PostResolver interface {
-	Author(ctx context.Context, obj *model.Post) (model.User, error)
+	Author(ctx context.Context, obj *model.Post) (*model.User, error)
 }
 type QueryResolver interface {
 	Me(ctx context.Context) (model.User, error)
@@ -469,18 +469,12 @@ func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, 
 			wg.Add(1)
 			go func(i int, field graphql.CollectedField) {
 				out.Values[i] = ec._Comment_post(ctx, field, obj)
-				if out.Values[i] == graphql.Null {
-					invalid = true
-				}
 				wg.Done()
 			}(i, field)
 		case "author":
 			wg.Add(1)
 			go func(i int, field graphql.CollectedField) {
 				out.Values[i] = ec._Comment_author(ctx, field, obj)
-				if out.Values[i] == graphql.Null {
-					invalid = true
-				}
 				wg.Done()
 			}(i, field)
 		default:
@@ -564,16 +558,17 @@ func (ec *executionContext) _Comment_post(ctx context.Context, field graphql.Col
 		return ec.resolvers.Comment().Post(rctx, obj)
 	})
 	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(model.Post)
+	res := resTmp.(*model.Post)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 
-	return ec._Post(ctx, field.Selections, &res)
+	if res == nil {
+		return graphql.Null
+	}
+
+	return ec._Post(ctx, field.Selections, res)
 }
 
 // nolint: vetshadow
@@ -592,16 +587,17 @@ func (ec *executionContext) _Comment_author(ctx context.Context, field graphql.C
 		return ec.resolvers.Comment().Author(rctx, obj)
 	})
 	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(model.User)
+	res := resTmp.(*model.User)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 
-	return ec._User(ctx, field.Selections, &res)
+	if res == nil {
+		return graphql.Null
+	}
+
+	return ec._User(ctx, field.Selections, res)
 }
 
 var mutationImplementors = []string{"Mutation"}
@@ -745,9 +741,6 @@ func (ec *executionContext) _Post(ctx context.Context, sel ast.SelectionSet, obj
 			wg.Add(1)
 			go func(i int, field graphql.CollectedField) {
 				out.Values[i] = ec._Post_author(ctx, field, obj)
-				if out.Values[i] == graphql.Null {
-					invalid = true
-				}
 				wg.Done()
 			}(i, field)
 		case "createdAt":
@@ -863,16 +856,17 @@ func (ec *executionContext) _Post_author(ctx context.Context, field graphql.Coll
 		return ec.resolvers.Post().Author(rctx, obj)
 	})
 	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(model.User)
+	res := resTmp.(*model.User)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 
-	return ec._User(ctx, field.Selections, &res)
+	if res == nil {
+		return graphql.Null
+	}
+
+	return ec._User(ctx, field.Selections, res)
 }
 
 // nolint: vetshadow
@@ -3037,15 +3031,15 @@ type Post {
   id: ID!
   title: String!
   content: String!
-  author: User!
+  author: User
   createdAt: Time!
 }
 
 type Comment {
   id: ID!
   content: String!
-  post: Post!
-  author: User!
+  post: Post
+  author: User
 }
 
 type Token {

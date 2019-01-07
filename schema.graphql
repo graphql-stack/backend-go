@@ -13,15 +13,15 @@ type Post {
   id: ID!
   title: String!
   content: String!
-  author: User!
+  author: User
   createdAt: Time!
 }
 
 type Comment {
   id: ID!
   content: String!
-  post: Post!
-  author: User!
+  post: Post
+  author: User
 }
 
 type Token {

@@ -26,10 +26,10 @@ func (r *Resolver) Query() QueryResolver {
 
 type commentResolver struct{ *Resolver }
 
-func (r *commentResolver) Post(ctx context.Context, obj *model.Comment) (model.Post, error) {
+func (r *commentResolver) Post(ctx context.Context, obj *model.Comment) (*model.Post, error) {
 	panic("not implemented")
 }
-func (r *commentResolver) Author(ctx context.Context, obj *model.Comment) (model.User, error) {
+func (r *commentResolver) Author(ctx context.Context, obj *model.Comment) (*model.User, error) {
 	panic("not implemented")
 }
 
@@ -52,8 +52,8 @@ func (r *mutationResolver) Login(ctx context.Context, loginInput types.LoginInpu
 
 type postResolver struct{ *Resolver }
 
-func (r *postResolver) Author(ctx context.Context, obj *model.Post) (model.User, error) {
-	panic("not implemented")
+func (r *postResolver) Author(ctx context.Context, obj *model.Post) (*model.User, error) {
+	return middleware.GetUserLoader(ctx).Load(obj.AuthorID)
 }
 
 type queryResolver struct{ *Resolver }
@@ -65,8 +65,23 @@ func (r *queryResolver) Me(ctx context.Context) (model.User, error) {
 	}
 	return *u, nil
 }
+
 func (r *queryResolver) Posts(ctx context.Context, pageParams *model.PageParms) (model.PostsList, error) {
-	panic("not implemented")
+	limit := 10
+	offset := 0
+
+	if pageParams != nil && pageParams.Limit != nil {
+		limit = *pageParams.Limit
+	}
+	if pageParams != nil && pageParams.Offset != nil {
+		offset = *pageParams.Offset
+	}
+	resp, err := service.GetPosts(limit, offset)
+	if err != nil {
+		return model.PostsList{}, err
+	}
+
+	return *resp, nil
 }
 func (r *queryResolver) Post(ctx context.Context, id string) (model.Post, error) {
 	panic("not implemented")

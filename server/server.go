@@ -35,6 +35,7 @@ func main() {
 	router.Use(middleware.Timeout(60 * time.Second))
 
 	router.Use(middleware2.AuthMiddleware())
+	router.Use(middleware2.DataloadersMiddleware())
 
 	gql := handler.GraphQL(backend_go.NewExecutableSchema(backend_go.Config{Resolvers: &backend_go.Resolver{}}))
 

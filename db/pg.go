@@ -20,7 +20,7 @@ func InitDB(fns ...func(db *gorm.DB)) {
 		fn(db)
 	}
 
-	ORM = db
+	ORM = db.Debug()
 }
 
 func init() {
