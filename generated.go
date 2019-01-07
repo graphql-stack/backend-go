@@ -13,6 +13,7 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
 	"github.com/graphql-stack/backend-go/model"
+	"github.com/graphql-stack/backend-go/types"
 	"github.com/vektah/gqlparser"
 	"github.com/vektah/gqlparser/ast"
 )
@@ -34,6 +35,7 @@ type Config struct {
 
 type ResolverRoot interface {
 	Comment() CommentResolver
+	Mutation() MutationResolver
 	Post() PostResolver
 	Query() QueryResolver
 }
@@ -47,6 +49,11 @@ type ComplexityRoot struct {
 		Content func(childComplexity int) int
 		Post    func(childComplexity int) int
 		Author  func(childComplexity int) int
+	}
+
+	Mutation struct {
+		Register func(childComplexity int, registerInput types.RegisterInput) int
+		Login    func(childComplexity int, loginInput types.LoginInput) int
 	}
 
 	Post struct {
@@ -64,8 +71,12 @@ type ComplexityRoot struct {
 
 	Query struct {
 		Me    func(childComplexity int) int
-		Posts func(childComplexity int) int
+		Posts func(childComplexity int, pageParams *model.PageParms) int
 		Post  func(childComplexity int, id string) int
+	}
+
+	Token struct {
+		Token func(childComplexity int) int
 	}
 
 	User struct {
@@ -80,13 +91,67 @@ type CommentResolver interface {
 	Post(ctx context.Context, obj *model.Comment) (model.Post, error)
 	Author(ctx context.Context, obj *model.Comment) (model.User, error)
 }
+type MutationResolver interface {
+	Register(ctx context.Context, registerInput types.RegisterInput) (model.User, error)
+	Login(ctx context.Context, loginInput types.LoginInput) (model.Token, error)
+}
 type PostResolver interface {
 	Author(ctx context.Context, obj *model.Post) (model.User, error)
 }
 type QueryResolver interface {
 	Me(ctx context.Context) (model.User, error)
-	Posts(ctx context.Context) (model.PostsList, error)
+	Posts(ctx context.Context, pageParams *model.PageParms) (model.PostsList, error)
 	Post(ctx context.Context, id string) (model.Post, error)
+}
+
+func field_Mutation_register_args(rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	args := map[string]interface{}{}
+	var arg0 types.RegisterInput
+	if tmp, ok := rawArgs["registerInput"]; ok {
+		var err error
+		arg0, err = UnmarshalRegisterInput(tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["registerInput"] = arg0
+	return args, nil
+
+}
+
+func field_Mutation_login_args(rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	args := map[string]interface{}{}
+	var arg0 types.LoginInput
+	if tmp, ok := rawArgs["loginInput"]; ok {
+		var err error
+		arg0, err = UnmarshalLoginInput(tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["loginInput"] = arg0
+	return args, nil
+
+}
+
+func field_Query_posts_args(rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	args := map[string]interface{}{}
+	var arg0 *model.PageParms
+	if tmp, ok := rawArgs["pageParams"]; ok {
+		var err error
+		var ptr1 model.PageParms
+		if tmp != nil {
+			ptr1, err = UnmarshalPageParms(tmp)
+			arg0 = &ptr1
+		}
+
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pageParams"] = arg0
+	return args, nil
+
 }
 
 func field_Query_post_args(rawArgs map[string]interface{}) (map[string]interface{}, error) {
@@ -190,6 +255,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Comment.Author(childComplexity), true
 
+	case "Mutation.register":
+		if e.complexity.Mutation.Register == nil {
+			break
+		}
+
+		args, err := field_Mutation_register_args(rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.Register(childComplexity, args["registerInput"].(types.RegisterInput)), true
+
+	case "Mutation.login":
+		if e.complexity.Mutation.Login == nil {
+			break
+		}
+
+		args, err := field_Mutation_login_args(rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.Login(childComplexity, args["loginInput"].(types.LoginInput)), true
+
 	case "Post.id":
 		if e.complexity.Post.Id == nil {
 			break
@@ -251,7 +340,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		return e.complexity.Query.Posts(childComplexity), true
+		args, err := field_Query_posts_args(rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Posts(childComplexity, args["pageParams"].(*model.PageParms)), true
 
 	case "Query.post":
 		if e.complexity.Query.Post == nil {
@@ -264,6 +358,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Post(childComplexity, args["id"].(string)), true
+
+	case "Token.token":
+		if e.complexity.Token.Token == nil {
+			break
+		}
+
+		return e.complexity.Token.Token(childComplexity), true
 
 	case "User.id":
 		if e.complexity.User.Id == nil {
@@ -314,7 +415,20 @@ func (e *executableSchema) Query(ctx context.Context, op *ast.OperationDefinitio
 }
 
 func (e *executableSchema) Mutation(ctx context.Context, op *ast.OperationDefinition) *graphql.Response {
-	return graphql.ErrorResponse(ctx, "mutations are not supported")
+	ec := executionContext{graphql.GetRequestContext(ctx), e}
+
+	buf := ec.RequestMiddleware(ctx, func(ctx context.Context) []byte {
+		data := ec._Mutation(ctx, op.SelectionSet)
+		var buf bytes.Buffer
+		data.MarshalGQL(&buf)
+		return buf.Bytes()
+	})
+
+	return &graphql.Response{
+		Data:       buf,
+		Errors:     ec.Errors,
+		Extensions: ec.Extensions,
+	}
 }
 
 func (e *executableSchema) Subscription(ctx context.Context, op *ast.OperationDefinition) func() *graphql.Response {
@@ -488,6 +602,113 @@ func (ec *executionContext) _Comment_author(ctx context.Context, field graphql.C
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 
 	return ec._User(ctx, field.Selections, &res)
+}
+
+var mutationImplementors = []string{"Mutation"}
+
+// nolint: gocyclo, errcheck, gas, goconst
+func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, mutationImplementors)
+
+	ctx = graphql.WithResolverContext(ctx, &graphql.ResolverContext{
+		Object: "Mutation",
+	})
+
+	out := graphql.NewOrderedMap(len(fields))
+	invalid := false
+	for i, field := range fields {
+		out.Keys[i] = field.Alias
+
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Mutation")
+		case "register":
+			out.Values[i] = ec._Mutation_register(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "login":
+			out.Values[i] = ec._Mutation_login(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _Mutation_register(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := field_Mutation_register_args(rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx := &graphql.ResolverContext{
+		Object: "Mutation",
+		Args:   args,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().Register(rctx, args["registerInput"].(types.RegisterInput))
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.User)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+
+	return ec._User(ctx, field.Selections, &res)
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := field_Mutation_login_args(rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx := &graphql.ResolverContext{
+		Object: "Mutation",
+		Args:   args,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().Login(rctx, args["loginInput"].(types.LoginInput))
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.Token)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+
+	return ec._Token(ctx, field.Selections, &res)
 }
 
 var postImplementors = []string{"Post"}
@@ -896,16 +1117,22 @@ func (ec *executionContext) _Query_me(ctx context.Context, field graphql.Collect
 func (ec *executionContext) _Query_posts(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := field_Query_posts_args(rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
 	rctx := &graphql.ResolverContext{
 		Object: "Query",
-		Args:   nil,
+		Args:   args,
 		Field:  field,
 	}
 	ctx = graphql.WithResolverContext(ctx, rctx)
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Posts(rctx)
+		return ec.resolvers.Query().Posts(rctx, args["pageParams"].(*model.PageParms))
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -1016,6 +1243,63 @@ func (ec *executionContext) _Query___schema(ctx context.Context, field graphql.C
 	}
 
 	return ec.___Schema(ctx, field.Selections, res)
+}
+
+var tokenImplementors = []string{"Token"}
+
+// nolint: gocyclo, errcheck, gas, goconst
+func (ec *executionContext) _Token(ctx context.Context, sel ast.SelectionSet, obj *model.Token) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, tokenImplementors)
+
+	out := graphql.NewOrderedMap(len(fields))
+	invalid := false
+	for i, field := range fields {
+		out.Keys[i] = field.Alias
+
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Token")
+		case "token":
+			out.Values[i] = ec._Token_token(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _Token_token(ctx context.Context, field graphql.CollectedField, obj *model.Token) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object: "Token",
+		Args:   nil,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Token, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return graphql.MarshalString(res)
 }
 
 var userImplementors = []string{"User"}
@@ -2610,6 +2894,104 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 	return ec.___Type(ctx, field.Selections, res)
 }
 
+func UnmarshalLoginInput(v interface{}) (types.LoginInput, error) {
+	var it types.LoginInput
+	var asMap = v.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "email":
+			var err error
+			it.Email, err = graphql.UnmarshalString(v)
+			if err != nil {
+				return it, err
+			}
+		case "password":
+			var err error
+			it.Password, err = graphql.UnmarshalString(v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func UnmarshalPageParms(v interface{}) (model.PageParms, error) {
+	var it model.PageParms
+	var asMap = v.(map[string]interface{})
+
+	if _, present := asMap["limit"]; !present {
+		asMap["limit"] = 10
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "limit":
+			var err error
+			var ptr1 int
+			if v != nil {
+				ptr1, err = graphql.UnmarshalInt(v)
+				it.Limit = &ptr1
+			}
+
+			if err != nil {
+				return it, err
+			}
+		case "offset":
+			var err error
+			var ptr1 int
+			if v != nil {
+				ptr1, err = graphql.UnmarshalInt(v)
+				it.Offset = &ptr1
+			}
+
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func UnmarshalRegisterInput(v interface{}) (types.RegisterInput, error) {
+	var it types.RegisterInput
+	var asMap = v.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "name":
+			var err error
+			it.Name, err = graphql.UnmarshalString(v)
+			if err != nil {
+				return it, err
+			}
+		case "email":
+			var err error
+			it.Email, err = graphql.UnmarshalString(v)
+			if err != nil {
+				return it, err
+			}
+		case "password":
+			var err error
+			it.Password, err = graphql.UnmarshalString(v)
+			if err != nil {
+				return it, err
+			}
+		case "avatar":
+			var err error
+			it.Avatar, err = graphql.UnmarshalString(v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) FieldMiddleware(ctx context.Context, obj interface{}, next graphql.Resolver) (ret interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2666,15 +3048,41 @@ type Comment {
   author: User!
 }
 
+type Token {
+  token: String!
+}
+
 type PostsList {
   totalCount: Int!
   posts: [Post!]!
 }
 
+input PageParms {
+  limit: Int = 10
+  offset: Int = 0
+}
+
 type Query {
   me: User!
-  posts: PostsList!
+  posts(pageParams: PageParms): PostsList!
   post(id: ID!): Post!
+}
+
+input RegisterInput {
+  name: String!
+  email: String!
+  password: String!
+  avatar: String!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+type Mutation {
+  register(registerInput: RegisterInput!): User!
+  login(loginInput: LoginInput!): Token!
 }
 
 scalar Time

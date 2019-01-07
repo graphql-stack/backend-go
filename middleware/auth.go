@@ -42,5 +42,9 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 }
 
 func GetCurrentUser(ctx context.Context) *model.User {
-	return ctx.Value(userContextKey).(*model.User)
+	u, ok := ctx.Value(userContextKey).(*model.User)
+	if !ok {
+		return nil
+	}
+	return u
 }

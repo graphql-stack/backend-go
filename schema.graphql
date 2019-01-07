@@ -24,15 +24,41 @@ type Comment {
   author: User!
 }
 
+type Token {
+  token: String!
+}
+
 type PostsList {
   totalCount: Int!
   posts: [Post!]!
 }
 
+input PageParms {
+  limit: Int = 10
+  offset: Int = 0
+}
+
 type Query {
   me: User!
-  posts: PostsList!
+  posts(pageParams: PageParms): PostsList!
   post(id: ID!): Post!
+}
+
+input RegisterInput {
+  name: String!
+  email: String!
+  password: String!
+  avatar: String!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+type Mutation {
+  register(registerInput: RegisterInput!): User!
+  login(loginInput: LoginInput!): Token!
 }
 
 scalar Time
