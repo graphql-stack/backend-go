@@ -36,3 +36,4 @@ coverage.txt
 dist
 
 .envc
+.envrc
