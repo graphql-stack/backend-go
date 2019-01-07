@@ -8,6 +8,7 @@ import (
 )
 
 func userToDataLoaderResp(keys []string, data []model.User) ([]*model.User, []error) {
+	notFound := errors.New("NOT_FOUND")
 	l := len(keys)
 
 	tmpMap := make(map[string]model.User, l)
@@ -24,7 +25,7 @@ func userToDataLoaderResp(keys []string, data []model.User) ([]*model.User, []er
 			resp[i] = &d
 		} else {
 			resp[i] = nil
-			errs[i] = errors.New("NOT_FOUND")
+			errs[i] = notFound
 		}
 	}
 
