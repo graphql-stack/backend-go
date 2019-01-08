@@ -41,6 +41,12 @@ func (r *mutationResolver) Register(ctx context.Context, registerInput types.Reg
 func (r *mutationResolver) Login(ctx context.Context, loginInput types.LoginInput) (model.Token, error) {
 	return resolver.Login(ctx, loginInput)
 }
+func (r *mutationResolver) CreatePost(ctx context.Context, postInput types.PostInput) (model.Post, error) {
+	return resolver.CreatePost(ctx, postInput)
+}
+func (r *mutationResolver) CreateComment(ctx context.Context, commentInput types.CommentInput) (model.Comment, error) {
+	return resolver.CreateComment(ctx, commentInput)
+}
 
 type postResolver struct{ *Resolver }
 

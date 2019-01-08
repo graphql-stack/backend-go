@@ -3,6 +3,7 @@ package model
 import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/bluele/factory-go/factory"
+	"github.com/graphql-stack/backend-go/utils"
 )
 
 var UserFactory = factory.NewFactory(&User{}).Attr("Name", func(args factory.Args) (i interface{}, e error) {
@@ -12,7 +13,8 @@ var UserFactory = factory.NewFactory(&User{}).Attr("Name", func(args factory.Arg
 }).Attr("Password", func(args factory.Args) (i interface{}, e error) {
 	return randomdata.RandStringRunes(10), nil
 }).Attr("Avatar", func(args factory.Args) (i interface{}, e error) {
-	return randomdata.RandStringRunes(10), nil
+	u := args.Instance().(*User)
+	return utils.GenerateAvatar(u.Name), nil
 })
 
 var PostFactory = factory.NewFactory(new(Post)).Attr("Title", func(args factory.Args) (i interface{}, e error) {

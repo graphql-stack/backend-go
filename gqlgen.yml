@@ -39,3 +39,7 @@ models:
     model: github.com/graphql-stack/backend-go/types.RegisterInput
   LoginInput:
     model: github.com/graphql-stack/backend-go/types.LoginInput
+  PostInput:
+    model: github.com/graphql-stack/backend-go/types.PostInput
+  CommentInput:
+    model: github.com/graphql-stack/backend-go/types.CommentInput

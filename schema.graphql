@@ -59,9 +59,21 @@ input LoginInput {
   password: String!
 }
 
+input PostInput {
+  title: String!
+  content: String!
+}
+
+input CommentInput {
+  content: String!
+  postID: ID!
+}
+
 type Mutation {
   register(registerInput: RegisterInput!): User!
   login(loginInput: LoginInput!): Token!
+  createPost(postInput: PostInput!): Post!
+  createComment(commentInput: CommentInput!): Comment!
 }
 
 scalar Time

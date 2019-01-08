@@ -61,3 +61,30 @@ func Posts(ctx context.Context, limit *int, offset *int) (model.PostsList, error
 func Post(ctx context.Context, id string) (model.Post, error) {
 	return service.GetPostByID(id)
 }
+
+func CreatePost(ctx context.Context, postInput types.PostInput) (model.Post, error) {
+	user := middleware.GetCurrentUser(ctx)
+	if user == nil {
+		return model.Post{}, types.ErrInvalidToken
+	}
+	pt, err := service.CreatePost(postInput, user)
+	if err != nil {
+		return model.Post{}, err
+	}
+
+	return *pt, nil
+}
+
+func CreateComment(ctx context.Context, commentInput types.CommentInput) (model.Comment, error) {
+	user := middleware.GetCurrentUser(ctx)
+	if user == nil {
+		return model.Comment{}, types.ErrInvalidToken
+	}
+
+	cm, err := service.CreateComment(commentInput, user)
+	if err != nil {
+		return model.Comment{}, err
+	}
+
+	return *cm, nil
+}
