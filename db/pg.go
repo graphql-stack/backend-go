@@ -20,7 +20,11 @@ func InitDB(fns ...func(db *gorm.DB)) {
 		fn(db)
 	}
 
-	ORM = db.Debug()
+	if os.Getenv("ENV") == "debug" {
+		db.LogMode(true)
+	}
+
+	ORM = db
 }
 
 func init() {

@@ -7,4 +7,5 @@ FROM alpine:3.7
 WORKDIR /opt
 RUN apk add --no-cache ca-certificates
 COPY --from=build /mnt/bin/* /usr/bin/
+EXPOSE 8080
 CMD ["server"]
