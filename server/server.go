@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/graphql-stack/backend-go"
+	"github.com/rs/cors"
 )
 
 const defaultPort = "8080"
@@ -33,6 +34,8 @@ func main() {
 	// through ctx.Done() that the request has timed out and further
 	// processing should be stopped.
 	router.Use(middleware.Timeout(60 * time.Second))
+
+	router.Use(cors.Default().Handler)
 
 	router.Use(middleware2.AuthMiddleware())
 	router.Use(middleware2.DataloadersMiddleware())
