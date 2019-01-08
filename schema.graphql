@@ -17,10 +17,18 @@ type Post {
   createdAt: Time!
 }
 
+type PostDetail {
+  id: ID!
+  title: String!
+  content: String!
+  author: User
+  createdAt: Time!
+  comments: [Comment]
+}
+
 type Comment {
   id: ID!
   content: String!
-  post: Post
   author: User
 }
 
@@ -33,15 +41,10 @@ type PostsList {
   posts: [Post!]!
 }
 
-input PageParms {
-  limit: Int = 10
-  offset: Int = 0
-}
-
 type Query {
   me: User!
-  posts(pageParams: PageParms): PostsList!
-  post(id: ID!): Post!
+  posts(limit: Int = 10, offset: Int = 0): PostsList!
+  post(id: ID!): PostDetail!
 }
 
 input RegisterInput {

@@ -37,6 +37,7 @@ type ResolverRoot interface {
 	Comment() CommentResolver
 	Mutation() MutationResolver
 	Post() PostResolver
+	PostDetail() PostDetailResolver
 	Query() QueryResolver
 }
 
@@ -47,7 +48,6 @@ type ComplexityRoot struct {
 	Comment struct {
 		Id      func(childComplexity int) int
 		Content func(childComplexity int) int
-		Post    func(childComplexity int) int
 		Author  func(childComplexity int) int
 	}
 
@@ -64,6 +64,15 @@ type ComplexityRoot struct {
 		CreatedAt func(childComplexity int) int
 	}
 
+	PostDetail struct {
+		Id        func(childComplexity int) int
+		Title     func(childComplexity int) int
+		Content   func(childComplexity int) int
+		Author    func(childComplexity int) int
+		CreatedAt func(childComplexity int) int
+		Comments  func(childComplexity int) int
+	}
+
 	PostsList struct {
 		TotalCount func(childComplexity int) int
 		Posts      func(childComplexity int) int
@@ -71,7 +80,7 @@ type ComplexityRoot struct {
 
 	Query struct {
 		Me    func(childComplexity int) int
-		Posts func(childComplexity int, pageParams *model.PageParms) int
+		Posts func(childComplexity int, limit *int, offset *int) int
 		Post  func(childComplexity int, id string) int
 	}
 
@@ -88,7 +97,6 @@ type ComplexityRoot struct {
 }
 
 type CommentResolver interface {
-	Post(ctx context.Context, obj *model.Comment) (*model.Post, error)
 	Author(ctx context.Context, obj *model.Comment) (*model.User, error)
 }
 type MutationResolver interface {
@@ -98,9 +106,14 @@ type MutationResolver interface {
 type PostResolver interface {
 	Author(ctx context.Context, obj *model.Post) (*model.User, error)
 }
+type PostDetailResolver interface {
+	Author(ctx context.Context, obj *model.Post) (*model.User, error)
+
+	Comments(ctx context.Context, obj *model.Post) ([]*model.Comment, error)
+}
 type QueryResolver interface {
 	Me(ctx context.Context) (model.User, error)
-	Posts(ctx context.Context, pageParams *model.PageParms) (model.PostsList, error)
+	Posts(ctx context.Context, limit *int, offset *int) (model.PostsList, error)
 	Post(ctx context.Context, id string) (model.Post, error)
 }
 
@@ -136,12 +149,12 @@ func field_Mutation_login_args(rawArgs map[string]interface{}) (map[string]inter
 
 func field_Query_posts_args(rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	args := map[string]interface{}{}
-	var arg0 *model.PageParms
-	if tmp, ok := rawArgs["pageParams"]; ok {
+	var arg0 *int
+	if tmp, ok := rawArgs["limit"]; ok {
 		var err error
-		var ptr1 model.PageParms
+		var ptr1 int
 		if tmp != nil {
-			ptr1, err = UnmarshalPageParms(tmp)
+			ptr1, err = graphql.UnmarshalInt(tmp)
 			arg0 = &ptr1
 		}
 
@@ -149,7 +162,21 @@ func field_Query_posts_args(rawArgs map[string]interface{}) (map[string]interfac
 			return nil, err
 		}
 	}
-	args["pageParams"] = arg0
+	args["limit"] = arg0
+	var arg1 *int
+	if tmp, ok := rawArgs["offset"]; ok {
+		var err error
+		var ptr1 int
+		if tmp != nil {
+			ptr1, err = graphql.UnmarshalInt(tmp)
+			arg1 = &ptr1
+		}
+
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["offset"] = arg1
 	return args, nil
 
 }
@@ -241,13 +268,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Comment.Content(childComplexity), true
 
-	case "Comment.post":
-		if e.complexity.Comment.Post == nil {
-			break
-		}
-
-		return e.complexity.Comment.Post(childComplexity), true
-
 	case "Comment.author":
 		if e.complexity.Comment.Author == nil {
 			break
@@ -314,6 +334,48 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Post.CreatedAt(childComplexity), true
 
+	case "PostDetail.id":
+		if e.complexity.PostDetail.Id == nil {
+			break
+		}
+
+		return e.complexity.PostDetail.Id(childComplexity), true
+
+	case "PostDetail.title":
+		if e.complexity.PostDetail.Title == nil {
+			break
+		}
+
+		return e.complexity.PostDetail.Title(childComplexity), true
+
+	case "PostDetail.content":
+		if e.complexity.PostDetail.Content == nil {
+			break
+		}
+
+		return e.complexity.PostDetail.Content(childComplexity), true
+
+	case "PostDetail.author":
+		if e.complexity.PostDetail.Author == nil {
+			break
+		}
+
+		return e.complexity.PostDetail.Author(childComplexity), true
+
+	case "PostDetail.createdAt":
+		if e.complexity.PostDetail.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.PostDetail.CreatedAt(childComplexity), true
+
+	case "PostDetail.comments":
+		if e.complexity.PostDetail.Comments == nil {
+			break
+		}
+
+		return e.complexity.PostDetail.Comments(childComplexity), true
+
 	case "PostsList.totalCount":
 		if e.complexity.PostsList.TotalCount == nil {
 			break
@@ -345,7 +407,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.Posts(childComplexity, args["pageParams"].(*model.PageParms)), true
+		return e.complexity.Query.Posts(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
 
 	case "Query.post":
 		if e.complexity.Query.Post == nil {
@@ -465,12 +527,6 @@ func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
-		case "post":
-			wg.Add(1)
-			go func(i int, field graphql.CollectedField) {
-				out.Values[i] = ec._Comment_post(ctx, field, obj)
-				wg.Done()
-			}(i, field)
 		case "author":
 			wg.Add(1)
 			go func(i int, field graphql.CollectedField) {
@@ -540,35 +596,6 @@ func (ec *executionContext) _Comment_content(ctx context.Context, field graphql.
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return graphql.MarshalString(res)
-}
-
-// nolint: vetshadow
-func (ec *executionContext) _Comment_post(ctx context.Context, field graphql.CollectedField, obj *model.Comment) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object: "Comment",
-		Args:   nil,
-		Field:  field,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Comment().Post(rctx, obj)
-	})
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*model.Post)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-
-	if res == nil {
-		return graphql.Null
-	}
-
-	return ec._Post(ctx, field.Selections, res)
 }
 
 // nolint: vetshadow
@@ -896,6 +923,262 @@ func (ec *executionContext) _Post_createdAt(ctx context.Context, field graphql.C
 	return graphql.MarshalTime(res)
 }
 
+var postDetailImplementors = []string{"PostDetail"}
+
+// nolint: gocyclo, errcheck, gas, goconst
+func (ec *executionContext) _PostDetail(ctx context.Context, sel ast.SelectionSet, obj *model.Post) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, postDetailImplementors)
+
+	var wg sync.WaitGroup
+	out := graphql.NewOrderedMap(len(fields))
+	invalid := false
+	for i, field := range fields {
+		out.Keys[i] = field.Alias
+
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PostDetail")
+		case "id":
+			out.Values[i] = ec._PostDetail_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "title":
+			out.Values[i] = ec._PostDetail_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "content":
+			out.Values[i] = ec._PostDetail_content(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "author":
+			wg.Add(1)
+			go func(i int, field graphql.CollectedField) {
+				out.Values[i] = ec._PostDetail_author(ctx, field, obj)
+				wg.Done()
+			}(i, field)
+		case "createdAt":
+			out.Values[i] = ec._PostDetail_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "comments":
+			wg.Add(1)
+			go func(i int, field graphql.CollectedField) {
+				out.Values[i] = ec._PostDetail_comments(ctx, field, obj)
+				wg.Done()
+			}(i, field)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	wg.Wait()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _PostDetail_id(ctx context.Context, field graphql.CollectedField, obj *model.Post) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object: "PostDetail",
+		Args:   nil,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return graphql.MarshalID(res)
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _PostDetail_title(ctx context.Context, field graphql.CollectedField, obj *model.Post) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object: "PostDetail",
+		Args:   nil,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Title, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return graphql.MarshalString(res)
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _PostDetail_content(ctx context.Context, field graphql.CollectedField, obj *model.Post) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object: "PostDetail",
+		Args:   nil,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Content, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return graphql.MarshalString(res)
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _PostDetail_author(ctx context.Context, field graphql.CollectedField, obj *model.Post) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object: "PostDetail",
+		Args:   nil,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.PostDetail().Author(rctx, obj)
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+
+	if res == nil {
+		return graphql.Null
+	}
+
+	return ec._User(ctx, field.Selections, res)
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _PostDetail_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Post) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object: "PostDetail",
+		Args:   nil,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return graphql.MarshalTime(res)
+}
+
+// nolint: vetshadow
+func (ec *executionContext) _PostDetail_comments(ctx context.Context, field graphql.CollectedField, obj *model.Post) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object: "PostDetail",
+		Args:   nil,
+		Field:  field,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.PostDetail().Comments(rctx, obj)
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Comment)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+
+	arr1 := make(graphql.Array, len(res))
+	var wg sync.WaitGroup
+
+	isLen1 := len(res) == 1
+	if !isLen1 {
+		wg.Add(len(res))
+	}
+
+	for idx1 := range res {
+		idx1 := idx1
+		rctx := &graphql.ResolverContext{
+			Index:  &idx1,
+			Result: res[idx1],
+		}
+		ctx := graphql.WithResolverContext(ctx, rctx)
+		f := func(idx1 int) {
+			if !isLen1 {
+				defer wg.Done()
+			}
+			arr1[idx1] = func() graphql.Marshaler {
+
+				if res[idx1] == nil {
+					return graphql.Null
+				}
+
+				return ec._Comment(ctx, field.Selections, res[idx1])
+			}()
+		}
+		if isLen1 {
+			f(idx1)
+		} else {
+			go f(idx1)
+		}
+
+	}
+	wg.Wait()
+	return arr1
+}
+
 var postsListImplementors = []string{"PostsList"}
 
 // nolint: gocyclo, errcheck, gas, goconst
@@ -1126,7 +1409,7 @@ func (ec *executionContext) _Query_posts(ctx context.Context, field graphql.Coll
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Posts(rctx, args["pageParams"].(*model.PageParms))
+		return ec.resolvers.Query().Posts(rctx, args["limit"].(*int), args["offset"].(*int))
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -1172,7 +1455,7 @@ func (ec *executionContext) _Query_post(ctx context.Context, field graphql.Colle
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 
-	return ec._Post(ctx, field.Selections, &res)
+	return ec._PostDetail(ctx, field.Selections, &res)
 }
 
 // nolint: vetshadow
@@ -2912,44 +3195,6 @@ func UnmarshalLoginInput(v interface{}) (types.LoginInput, error) {
 	return it, nil
 }
 
-func UnmarshalPageParms(v interface{}) (model.PageParms, error) {
-	var it model.PageParms
-	var asMap = v.(map[string]interface{})
-
-	if _, present := asMap["limit"]; !present {
-		asMap["limit"] = 10
-	}
-
-	for k, v := range asMap {
-		switch k {
-		case "limit":
-			var err error
-			var ptr1 int
-			if v != nil {
-				ptr1, err = graphql.UnmarshalInt(v)
-				it.Limit = &ptr1
-			}
-
-			if err != nil {
-				return it, err
-			}
-		case "offset":
-			var err error
-			var ptr1 int
-			if v != nil {
-				ptr1, err = graphql.UnmarshalInt(v)
-				it.Offset = &ptr1
-			}
-
-			if err != nil {
-				return it, err
-			}
-		}
-	}
-
-	return it, nil
-}
-
 func UnmarshalRegisterInput(v interface{}) (types.RegisterInput, error) {
 	var it types.RegisterInput
 	var asMap = v.(map[string]interface{})
@@ -3035,10 +3280,18 @@ type Post {
   createdAt: Time!
 }
 
+type PostDetail {
+  id: ID!
+  title: String!
+  content: String!
+  author: User
+  createdAt: Time!
+  comments: [Comment]
+}
+
 type Comment {
   id: ID!
   content: String!
-  post: Post
   author: User
 }
 
@@ -3051,15 +3304,10 @@ type PostsList {
   posts: [Post!]!
 }
 
-input PageParms {
-  limit: Int = 10
-  offset: Int = 0
-}
-
 type Query {
   me: User!
-  posts(pageParams: PageParms): PostsList!
-  post(id: ID!): Post!
+  posts(limit: Int = 10, offset: Int = 0): PostsList!
+  post(id: ID!): PostDetail!
 }
 
 input RegisterInput {

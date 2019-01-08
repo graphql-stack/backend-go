@@ -36,8 +36,8 @@ func main() {
 
 	router.Use(middleware2.AuthMiddleware())
 	router.Use(middleware2.DataloadersMiddleware())
-
-	gql := handler.GraphQL(backend_go.NewExecutableSchema(backend_go.Config{Resolvers: &backend_go.Resolver{}}))
+	c := backend_go.Config{Resolvers: &backend_go.Resolver{}}
+	gql := handler.GraphQL(backend_go.NewExecutableSchema(c))
 
 	router.Handle("/", handler.Playground("GraphQL playground", "/query"))
 	router.Handle("/query", gql)

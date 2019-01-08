@@ -50,10 +50,11 @@ func (t *Token) IsExpired() bool {
 
 type Post struct {
 	Model
-	Title    string `json:"title" gorm:"type:varchar(150);index;not null"`
-	Content  string `json:"content" gorm:"type:text"`
-	Author   *User  `json:"-" gorm:"foreignkey:AuthorID"`
-	AuthorID string `json:"author_id"`
+	Title    string    `json:"title" gorm:"type:varchar(150);index;not null"`
+	Content  string    `json:"content" gorm:"type:text"`
+	Author   *User     `json:"-" gorm:"foreignkey:AuthorID"`
+	AuthorID string    `json:"author_id"`
+	Comments []Comment `json:"comments"`
 }
 
 type Comment struct {

@@ -21,6 +21,11 @@ models:
     fields:
       author:
         resolver: true
+  PostDetail:
+    model: github.com/graphql-stack/backend-go/model.Post
+    fields:
+      author:
+        resolver: true
   Comment:
     model: github.com/graphql-stack/backend-go/model.Comment
     fields:

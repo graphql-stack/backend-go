@@ -15,3 +15,15 @@ func GetPosts(limit, offset int) (*model.PostsList, error) {
 
 	return &model.PostsList{TotalCount: totalCount, Posts: posts}, nil
 }
+
+func GetPostByID(id string) (model.Post, error) {
+	var post model.Post
+	err := db.ORM.Where("id = ?", id).First(&post).Error
+	return post, err
+}
+
+func GetComments(post *model.Post) ([]*model.Comment, error) {
+	var comments []*model.Comment
+	err := db.ORM.Model(post).Related(&comments).Error
+	return comments, err
+}

@@ -2,11 +2,6 @@
 
 package model
 
-type PageParms struct {
-	Limit  *int `json:"limit"`
-	Offset *int `json:"offset"`
-}
-
 type PostsList struct {
 	TotalCount int    `json:"totalCount"`
 	Posts      []Post `json:"posts"`
